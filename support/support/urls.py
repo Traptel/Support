@@ -1,8 +1,9 @@
-from django.urls import path
-import time
-import requests
 import json
+import time
+
+import requests
 from django.http import JsonResponse
+from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
 cache = {}
