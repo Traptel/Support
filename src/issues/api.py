@@ -25,6 +25,6 @@ def add_new_issue(request):
 
     if new_issue_serializer.is_valid():
         new_issue_serializer.save()
-        return Response(new_issue_serializer.data, status=201)
+        return Response(new_issue_serializer.data)
     else:
-        return Response(new_issue_serializer.errors, status=400)
+        return Response(new_issue_serializer.errors)
