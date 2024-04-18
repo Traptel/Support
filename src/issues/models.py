@@ -1,8 +1,36 @@
 from django.db import models
+from django.db.models import Q
+
+from users.models import User
+
+
+class IssueManagers(models.Manager):
+    def filter_by_participent(self, user: User):
+        return self.model.filter(Q(junior=user) | Q(senior=user))
 
 
 class Issue(models.Model):
-    junior_id = models.IntegerField()
-    senior_id = models.IntegerField()
     title = models.CharField(max_length=100)
-    body = models.TextField()
+    status = models.PositiveSmallIntegerField()
+
+    junior = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="junior_issue"
+    )
+    senior = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="senior_issue", null=True
+    )
+
+    def __repr__(self) -> str:
+        return f"Issue[{self.pk} {self.title[:10]}]"
+
+
+class Message(models.Model):
+    body = models.TextField(null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="user_massege"
+    )
+    issue = models.ForeignKey(
+        Issue, on_delete=models.CASCADE, related_name="issue_massege"
+    )
