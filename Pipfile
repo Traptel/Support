@@ -9,6 +9,7 @@ requests = "~=2.0.0"
 httpx = "~=0.27.0"
 djangorestframework = "*"
 psycopg2 = "==2.9.9"
+djangorestframework-simplejwt = {version="~=5.3.1", extra=["crypto"]}
 
 [dev-packages]
 django-stubs = "*"
