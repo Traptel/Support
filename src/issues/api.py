@@ -1,4 +1,5 @@
 from rest_framework import generics, serializers
+from rest_framework.exceptions import PermissionDenied
 
 from users.enums import Role
 
@@ -24,7 +25,15 @@ class IssueAPI(generics.ListCreateAPIView):
     serializer_class = IssueSerializer
 
     def get_queryset(self):
-        return Issue.objects.all()
+        user = self.request.user
+        if user.role == Role.ADMIN:
+            return Issue.objects.all()
+        elif user.role == Role.SENIOR:
+            return Issue.objects.filter(senior=user) | Issue.objects.filter(
+                senior=None
+            )
+        elif user.role == Role.JUNIOR:
+            return Issue.objects.filter(junior=user)
 
     def post(self, request):
         if request.user.role == Role.SENIOR:
@@ -38,6 +47,31 @@ class IssuesRetrieveAPI(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = IssueSerializer
     queryset = Issue.objects.all()
     lookup_url_kwarg = "id"
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        if user.role != Role.ADMIN:
+            raise PermissionDenied(
+                "Only administrators can perform this action."
+            )
+        return super().delete(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        if user.role not in [Role.ADMIN, Role.SENIOR]:
+            raise PermissionDenied(
+                "Only administrators and seniors can perform this action."
+            )
+        return super().update(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        user = request.user
+        issue = self.get_object()
+        if user.role == Role.JUNIOR and issue.junior != user:
+            raise PermissionDenied(
+                "You can't access another person's question."
+            )
+        return super().retrieve(request, *args, **kwargs)
 
 
 # @api_view(["GET"])

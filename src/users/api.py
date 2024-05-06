@@ -1,63 +1,73 @@
 from django.contrib.auth.hashers import make_password
-from rest_framework import generics, serializers
-from rest_framework.permissions import AllowAny
+from rest_framework import generics, permissions, serializers, status
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 
+from .enums import Role
 from .models import User
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = [
-            "id",
-            "email",
-            "first_name",
-            "last_name",
-            "role",
-            "is_active",
-        ]
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = [
-            "id",
-            "email",
-            "first_name",
-            "last_name",
-            "password",
-            "role",
-            "is_active",
-        ]
+        fields = ["email", "password", "first_name", "last_name", "role"]
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
+        """Change the password for its hash"""
+
         attrs["password"] = make_password(attrs["password"])
+
         return attrs
 
 
-class UserAPI(generics.ListAPIView):
-    http_method_names = ["get"]
-    serializer_class = UserSerializer
-
-    def get_queryset(self):
-        return User.objects.all()
+class UserRegistrationPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email", "first_name", "last_name", "role"]
 
 
-class UserRegistrationAPI(generics.CreateAPIView):
-    http_method_names = ["post"]
+class UserListCreateAPI(generics.ListCreateAPIView):
+    http_method_names = ["get", "post"]
     serializer_class = UserRegistrationSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         return User.objects.all()
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        return Response(
+            UserRegistrationPublicSerializer(serializer.validated_data).data,
+            status=status.HTTP_201_CREATED,
+            headers=self.get_success_headers(serializer.data),
+        )
+
+    def get(self, request):
+        queryset = self.get_queryset()
+        serializer = UserRegistrationPublicSerializer(queryset, many=True)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserRetrieveAPI(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "put", "patch", "delete"]
-    serializer_class = UserSerializer
+    serializer_class = UserRegistrationPublicSerializer
     queryset = User.objects.all()
     lookup_url_kwarg = "id"
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        if user.role != Role.ADMIN:
+            raise PermissionDenied(
+                "Only administrators can perform this action."
+            )
+        return super().delete(request, *args, **kwargs)
 
 
 # def create_user(request: HttpRequest) -> JsonResponse:
