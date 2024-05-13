@@ -144,6 +144,7 @@ def issues_close(request: Request, id: int):
         issue.save()
 
     serializers = IssueSerializer(issue)
+
     return response.Response(serializers.data)
 
 
