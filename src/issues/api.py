@@ -1,10 +1,13 @@
-from rest_framework import generics, serializers
+from django.db.models import Q
+from rest_framework import generics, response, serializers
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.request import Request
 
 from users.enums import Role
 
 from .enums import Status
-from .models import Issue
+from .models import Issue, Message
 
 
 class IssueSerializer(serializers.ModelSerializer):
@@ -29,8 +32,9 @@ class IssueAPI(generics.ListCreateAPIView):
         if user.role == Role.ADMIN:
             return Issue.objects.all()
         elif user.role == Role.SENIOR:
-            return Issue.objects.filter(senior=user) | Issue.objects.filter(
-                senior=None
+            return Issue.objects.filter(
+                Q(senior=self.request.user)
+                | (Q(senior=None) & Q(status=Status.OPENED))
             )
         elif user.role == Role.JUNIOR:
             return Issue.objects.filter(junior=user)
@@ -72,6 +76,97 @@ class IssuesRetrieveAPI(generics.RetrieveUpdateDestroyAPIView):
                 "You can't access another person's question."
             )
         return super().retrieve(request, *args, **kwargs)
+
+
+class MessegaSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    issue = serializers.PrimaryKeyRelatedField(queryset=Issue.objects.all())
+
+    class Meta:
+        model = Message
+        fields = "__all__"
+
+    def save(self):
+        if (user := self.validated_data.pop("user", None)) is not None:
+            self.validated_data["user_id"] = user.id
+
+        if (issue := self.validated_data.pop("issue", None)) is not None:
+            self.validated_data["issue_id"] = issue.id
+
+        return super().save()
+
+
+@api_view(["GET", "POST"])
+def messages_api_dispatcher(request: Request, issue_id: int):
+    if request.method == "GET":
+        # messages = Message.objects.filter(
+        # Q(
+        #     issue__id=issue_id,
+        #     issue__junior = request.user
+        # )
+        # | Q(
+        #     issue__id = issue_id,
+        #     issue__senior = request.user
+        # )
+        messages = Message.objects.filter(
+            Q(issue__id=issue_id)
+            & (Q(issue__senior=request.user) | Q(issue__junior=request.user))
+        ).order_by("-timestamp")
+        serializers = MessegaSerializer(messages, many=True)
+
+        return response.Response(serializers.data)
+    else:
+        issue = Issue.objects.get(id=issue_id)
+        payload = request.data | {"issue": issue.id}
+
+        serializer = MessegaSerializer(
+            data=payload, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return response.Response(serializer.validated_data)
+
+
+@api_view(["PUT"])
+def issues_close(request: Request, id: int):
+    issue = Issue.objects.get(id=id)
+    if request.user.role != Role.SENIOR:
+        raise PermissionError("Only senior users can close issues")
+
+    if issue.status != Status.IN_PROGRESS:
+        raise response.Response(
+            {"message": "Issue is not In progress"}, status=422
+        )
+    else:
+        issue.senior = request.user
+        issue.status = Status.CLOSED
+        issue.save()
+
+    serializers = IssueSerializer(issue)
+    return response.Response(serializers.data)
+
+
+@api_view(["PUT"])
+def issues_take(request: Request, id: int):
+    issue = Issue.objects.get(id=id)
+
+    if request.user.role != Role.SENIOR:
+        raise PermissionError("Only senior users can take issues")
+
+    if (issue.status != Status.OPENED) or (issue.senior is not None):
+        return response.Response(
+            {"message": "Issue is not Opened or senior is set..."},
+            status=422,
+        )
+    else:
+        issue.senior = request.user
+        issue.status = Status.IN_PROGRESS
+        issue.save()
+
+    serializer = IssueSerializer(issue)
+
+    return response.Response(serializer.data)
 
 
 # @api_view(["GET"])
