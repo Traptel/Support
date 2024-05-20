@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  database:
+    image: "postgres:16"
+    container_name: hillel_support_database
+    ports:
+      - "5432:5432"
+    env_file: ".env"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hillel_support
+    container_name: hillel_support_api
+    ports:
+      - "8000:8000"
+    env_file: ".env"
+    depends_on:
+      - database
