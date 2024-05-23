@@ -1,0 +1,11 @@
+.git/
+.github/
+.idea/
+.vscode/
+.ruff_cache/
+docs/
+scripts/
+docker-compose.yaml
+Dockerfile
+README.md
+__pycache__/

@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.utils import timezone
@@ -15,7 +17,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False,
     )
     is_active = models.BooleanField(
-        default=True,
+        default=False,
     )
     is_superuser = models.BooleanField(
         default=False,
@@ -48,3 +50,8 @@ class User(AbstractBaseUser, PermissionsMixin):
             return self.get_full_name()
         else:
             return self.email
+
+
+class ActivationKey(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    key = models.UUIDField(default=uuid.uuid4, editable=False)
