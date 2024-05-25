@@ -39,6 +39,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "users",
     "issues",
+    "shared",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -152,7 +153,8 @@ SIMPLE_JWT = {
     # "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer", #noqa
 }
 
-CELERY_BROKER_URL = os.getenv("REDIS_URL", default="redis://localhost:6379")
+CACHE_URL = os.getenv("CACHE_URL", default="redis://cache:6380/0")
+CELERY_BROKER_URL = os.getenv("BROKER_URL", default="redis://broker:6379/0")
 # CELERY_TASK_SERIALIZER = "pickle"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

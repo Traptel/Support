@@ -1,35 +1,29 @@
 services:
-  broker:
-    image: "redis:latest"
-    container_name: hillel_support_broker
-    ports:
-      - "6379:6379"
-
   cache:
     image: "redis:latest"
     container_name: hillel_support_cache
-    ports:
-      - "6380:6379"
+
+  broker:
+    image: "redis:latest"
+    container_name: hillel_support_broker
+
 
   mailing:
     image: mailhog/mailhog:latest
     container_name: hillel_support_mailing
     env_file: ".env"
     ports:
-      - "1025:1025"
       - "8025:8025"
 
   database:
     image: "postgres:16"
     container_name: hillel_support_database
-    ports:
-      - "5432:5432"
     env_file: ".env"
     volumes:
       - "pg_data:/var/lib/postgresql/data"
 
-  api:  &app
-    build:
+  api: &app
+    build: 
       context: .
       dockerfile: Dockerfile
     image: hillel_support
@@ -48,9 +42,10 @@ services:
   worker:
     <<: *app
     container_name: hillel_support_worker
-    ports: []
+    ports: []  
     entrypoint: bash
     command: -c "watchmedo auto-restart --pattern='*.py' --recursive -- celery -A config worker -l INFO"
+
 
 volumes:
   pg_data: {}

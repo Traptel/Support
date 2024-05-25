@@ -4,8 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from shared.cache import CacheService
+
 from .enums import Role
-from .models import ActivationKey, User
+from .models import User
 from .services import Activator
 
 
@@ -103,16 +105,16 @@ def activate_user(request) -> Response:
             status=200,
         )
 
-    try:
-        activation = ActivationKey.objects.get(key=activation_key)
-    except ActivationKey.DoesNotExist:
+    cache = CacheService()
+    key_exists = cache.connection.exists(f"activation:{activation_key}")
+    if not key_exists:
         return Response(
             {"message": "Activation key does not exist"},
             status=404,
         )
 
     activator_service = Activator(email=email)
-    activator_service.validate_activation(user, activation=activation)
+    activator_service.validate_activation(key=activation_key)
 
     return Response(
         {"message": "Email activated successfully"},

@@ -1,6 +1,8 @@
 import uuid
 
-from .models import ActivationKey, User
+from shared.cache import CacheService
+
+from .models import User
 from .tasks import send_activation_mail, send_email_activation_success
 
 
@@ -24,17 +26,23 @@ class Activator:
         )
 
     def save_activation_information(
-        self,
-        internal_user_id: int,
-        activation_key: uuid.UUID,
+        self, internal_user_id: int, activation_key: uuid.UUID
     ):
-        ActivationKey.objects.create(
-            user_id=internal_user_id,
-            key=activation_key,
+        cache = CacheService()
+        payload = {"user_id": internal_user_id}
+        cache.save(
+            namespace="activation",
+            key=str(activation_key),
+            instance=payload,
+            ttl=2_000,
         )
 
-    def validate_activation(self, user: User, activation: ActivationKey):
+    def validate_activation(self, key: str):
+        cache = CacheService()
+        activation_data = cache.get(namespace="activation", key=key)
+        user_id = activation_data.get("user_id")
+        user = User.objects.get(id=user_id)
         user.is_active = True
         user.save()
-        activation.delete()
+        cache.delete(namespace="activation", key=str(key))
         send_email_activation_success.delay(recipient=self.email)
