@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from rest_framework import permissions
 from issues.api import (
     IssueAPI,
     IssuesRetrieveAPI,
@@ -14,6 +16,20 @@ from users.api import (
     UserRetrieveAPI,
     activate_user,
     resend_activation_user,
+)
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Support APi",
+        default_version="v1",
+        description=(
+            "The Backend API that allows you to " "interact with Support Core"
+        ),
+        contact=openapi.Contact(email="support.support@gmail.com"),
+        license=openapi.License(name="MIT License"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
 )
 
 urlpatterns = [
@@ -34,4 +50,19 @@ urlpatterns = [
     # Authentication
     path("auth/token/", TokenObtainPairView.as_view()),
     # path("auth/token/", token_obtain_pair),
+    path(
+        "swagger<format>/",
+        schema_view.without_ui(cache_timeout=0),
+        name="schema-json",
+    ),
+    path(
+        "docs/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    path(
+        "redoc/",
+        schema_view.with_ui("redoc", cache_timeout=0),
+        name="schema-redoc",
+    ),
 ]
